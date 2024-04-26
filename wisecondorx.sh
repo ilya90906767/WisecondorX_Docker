@@ -1,38 +1,45 @@
 docker build -t wisecondorx:latest . 
+WORKDIR="/home"
 
-CONTAINER="wisecondor:latest"
+
+CONTAINER="wisecondorx:latest"
 operation=$1 
 
-if [ "$operation" = "convert"]; then 
+
+if [ "$operation" = "convert" ]; then 
 
     bam_folder=$2
     output_folder=$3
     threads=$4
 
     mkdir -p "$output_folder"
-
+         
     bam_files=($(find "$bam_folder" -type f -name "*.bam"))
     echo "Converting BAM files to NPZ using WisecondorX..."
     for bam_file in "${bam_files[@]}"; do
         output_file="${output_folder}/${bam_file%.bam}.npz"
         echo "Converting $bam_file to $output_file"
-        echo "docker run --rm -v "$bam_folder":/input -v "$output_folder":/output $CONTAINER WisecondorX convert /input/"$bam_file" /output/"$output_file""  >> WiseConvert.logs
-        docker run --rm -v "$bam_folder":/input -v "$output_folder":/output $CONTAINER WisecondorX convert /input/"$bam_file" /output/"$output_file" &
+        echo "docker run \
+         --rm -v ${bam_folder}:${bam_folder}:ro -v ${output_folder}:${output_folder}:ro $CONTAINER WisecondorX convert /${bam_file} /${output_file}"  >> WiseConvert.logs
+        docker run \
+         --rm -v ${bam_folder}:${bam_folder}:ro -v ${output_folder}:${output_folder}:ro $CONTAINER \
+         WisecondorX convert /${bam_file} /${output_file} &
     done | xargs -P "$threads" -n 1
 
    wait
    echo "All BAM files converted to NPZ successfully!" >> WiseConvert.logs
   echo "Conversion complete."
 
-elif [ "$operation" = "newref"]; then 
+elif [ "$operation" = "newref" ]; then 
 
     input_folder=$2
     output_file=$3
     threads=$4
-    docker run --rm -v "$input_folder":/input -v "$(dirname "$output_file")":/output $CONTAINER WisecondorX newref /input/*.npz /output/"$output_file" --cpus $threads
+    docker run --rm -v ${input_folder}:${input_folder} -v ${output_file}:${output_file} $CONTAINER \
+    WisecondorX newref /${input_folder}/*.npz /${output_file} --cpus $threads
     echo "All NPZ files processed successfully using WisecondorX newref!"
 
-elif [ "$operation" = "predict"]; then 
+elif [ "$operation" = "predict" ]; then 
 
     input_folder=$2
     reference=$3 
@@ -44,8 +51,9 @@ elif [ "$operation" = "predict"]; then
     for npz_file in "${npz_to_predict[@]}"; do 
         output_id="${output_folder}/${npz_file%.npz}"
         echo "Predicting $output_id"
-        echo "docker run --rm -v "$input_folder":/input -v "$reference":/reference -v "$output_folder":/output $CONTAINER WisecondorX predict /input/"$npz_file" /reference/"$reference" /output/"$output_id" --plot --bed" >> WisePredict.logs
-        docker run --rm -v "$input_folder":/input -v "$reference":/reference -v "$output_folder":/output $CONTAINER WisecondorX predict /input/"$npz_file" /reference/"$reference" /output/"$output_id" --plot --bed &
+        echo "docker run --rm -v ${input_folder}:${input_folder} -v ${reference}:${reference} -v ${output_folder}:${output_folder} $CONTAINER WisecondorX predict /${npz_file} /${reference} /${output_folder} --plot --bed &" >> WisePredict.logs
+        docker run --rm -v ${input_folder}:${input_folder} -v ${reference}:${reference} -v ${output_folder}:${output_folder} $CONTAINER \ 
+        WisecondorX predict /${npz_file} /${reference} /${output_folder} --plot --bed &
     done | xargs -P "$threads" -n 1
 
     wait 
