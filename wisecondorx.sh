@@ -1,10 +1,23 @@
 docker build -t wisecondorx:latest . 
 WORKDIR="/home"
 
+if [ $# -lt 1 ]; then
+  echo "Error: No operation specified. Please use 'convert', 'newref', or 'predict' as the first argument."
+  exit 1
+fi
 
 CONTAINER="wisecondorx:latest"
 operation=$1 
 
+
+if [ "$operation"!= "convert" ] && [ "$operation"!= "newref" ] && [ "$operation"!= "predict" ]; then
+  echo "Error: Invalid operation. Please use 'convert', 'newref', or 'predict' as the first argument."
+  exit 1
+fi
+
+start_time=$(date +%s)
+start_memory=$(pmap -d $$ | awk '{print $3}')
+start_cpu=$(top -b -n 1 | awk '/Cpu/ {print $2}' | sed 's/%//')
 
 if [ "$operation" = "convert" ]; then 
 
@@ -64,27 +77,10 @@ else
   echo "Invalid operation. Please use 'convert' as the first argument."
 fi
 
-    # INPUT_BAM_DIR="$1"
-    # THREADS=$2
+end_time=$(date +%s)
+end_memory=$(pmap -d $$ | awk '{print $3}')
+end_cpu=$(top -b -n 1 | awk '/Cpu/ {print $2}' | sed 's/%//')
 
-    # if [ $# -ne 2]; then 
-    #     echo "Usage: $0 [path_to_bam_files] [threads]"
-    #     exit 1 
-    # fi 
-
-    # if [ ! -d "$INPUT_BAM_DIR" ]; then 
-    #     echo "Directory does not exist: $INPUT_BAM_DIR"
-    #     exit 1 
-    # fi 
-
-    # docker_run_function() {
-    #     bamfile=$1
-    #     echo "Processing BAM file: $bamfile"
-    #     docker run --rm -v "$INPUT_BAM_DIR":/data "$CONTAINER" sh -c "samtools view -q 30 /data/$bamfile | python2 /home/karyo_RxRy_script.py --chr21"
-    # }
-
-    # export -f docker_run_function
-
-    # rm -f results.txt 
-
-    # find "$INPUT_BAM_DIR" -type f -name "*.bam" -print0 | xargs -O -n 1 -P $THREADS -I {} bash -c 'docker_run_function "{}" >> results.txt' _
+echo "Operation completed in $(($end_time - $start_time)) seconds."
+echo "Memory usage: $(($end_memory - $start_memory)) MB"
+echo "CPU usage: $(($end_cpu - $start_cpu))%"
